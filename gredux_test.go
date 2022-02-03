@@ -12,7 +12,7 @@ func TestDispatch(t *testing.T) {
 	}
 	store := New(testState{false})
 	store.Dispatch(Action{"test", nil})
-	store.Reducer(func(state State, action Action) State {
+	store.AddReducer(func(state State, action Action) State {
 		switch action.ID {
 		case "test":
 			return testState{true}
@@ -22,7 +22,36 @@ func TestDispatch(t *testing.T) {
 	})
 	store.Dispatch(Action{"test", nil})
 	if st := store.State().(testState); !st.success {
-		t.Fatal("expected reducer to set success")
+		t.Fatal("expected reducers to set success")
+	}
+}
+
+func TestMultipleReducers(t *testing.T) {
+	type testState struct {
+		success bool
+		successOfOtherReducer bool
+	}
+	store := New(testState{false, false})
+	store.Dispatch(Action{"test", nil})
+	store.AddReducer(func(state State, action Action) State {
+		switch action.ID {
+		case "test":
+			return testState{true, state.(testState).successOfOtherReducer}
+		default:
+			return state
+		}
+	})
+	store.AddReducer(func(state State, action Action) State {
+		switch action.ID {
+		case "test":
+			return testState{state.(testState).success, true}
+		default:
+			return state
+		}
+	})
+	store.Dispatch(Action{"test", nil})
+	if st := store.State().(testState); !st.success || !st.successOfOtherReducer {
+		t.Fatal("expected reducers to set success for both options")
 	}
 }
 
@@ -31,7 +60,7 @@ func TestDispatchUpdate(t *testing.T) {
 		success bool
 	}
 	store := New(testState{false})
-	store.Reducer(func(state State, action Action) State {
+	store.AddReducer(func(state State, action Action) State {
 		switch action.ID {
 		case "test":
 			return testState{true}
@@ -59,7 +88,7 @@ func TestDispatchIncrementDecrement(t *testing.T) {
 		count int
 	}
 	store := New(counterState{0})
-	store.Reducer(func(state State, action Action) State {
+	store.AddReducer(func(state State, action Action) State {
 		switch action.ID {
 		case "increment":
 			return counterState{state.(counterState).count + action.Data.(int)}
@@ -118,7 +147,7 @@ func TestHooks(t *testing.T) {
 	store.AddHook(hookThree, []string{"notCalled"})
 	store.AddHook(hookFour, []string{"test"})
 
-	store.Reducer(func(state State, action Action) State {
+	store.AddReducer(func(state State, action Action) State {
 		switch action.ID {
 		case "test":
 			return testState{true}
@@ -131,7 +160,7 @@ func TestHooks(t *testing.T) {
 	store.Dispatch(Action{"otherTest", nil})
 
 	if st := store.State().(testState); !st.success {
-		t.Fatal("expected reducer to set success")
+		t.Fatal("expected reducers to set success")
 	}
 
 	if hookOneCalled == false {
@@ -154,7 +183,7 @@ func TestConcurrentDispatch(t *testing.T) {
 		success bool
 	}
 	store := New(testState{false})
-	store.Reducer(func(state State, action Action) State {
+	store.AddReducer(func(state State, action Action) State {
 		return testState{true}
 	})
 	for i := 0; i < 10; i++ {
@@ -173,7 +202,7 @@ func TestStoreImmutability(t *testing.T) {
 		mutated bool
 	}
 	store := New(testState{false, false})
-	store.Reducer(func(state State, action Action) State {
+	store.AddReducer(func(state State, action Action) State {
 		st := state.(testState)
 		if st.mutated {
 			t.Fatal("state was mutated")
@@ -219,7 +248,7 @@ func BenchmarkDispatch(b *testing.B) {
 		count int
 	}
 	store := New(counterState{0})
-	store.Reducer(func(state State, action Action) State {
+	store.AddReducer(func(state State, action Action) State {
 		switch action.ID {
 		case "increment":
 			return counterState{state.(counterState).count + 1}

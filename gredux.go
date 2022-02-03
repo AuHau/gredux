@@ -22,9 +22,9 @@ type (
 	// The current state of the Store can be received by calling State()
 	// but the state can only be changed by a Reducer as the result of a Dispatch'd Action.
 	Store struct {
-		mu      sync.RWMutex
-		reducer Reducer
-		state   State
+		mu       sync.RWMutex
+		reducers []Reducer
+		state    State
 		update  func(State)
 		hooks   map[string][]func(State)
 	}
@@ -34,8 +34,10 @@ type (
 // initialState should be the struct used to define the Store's state.
 func New(initialState State) *Store {
 	st := Store{
-		reducer: func(s State, a Action) State {
-			return s
+		reducers: []Reducer{
+			func(s State, a Action) State {
+				return s
+			},
 		},
 		state: initialState,
 		hooks: map[string][]func(State){},
@@ -43,9 +45,9 @@ func New(initialState State) *Store {
 	return &st
 }
 
-// Reducer sets the store's reducer function to the function `r`.
-func (st *Store) Reducer(r Reducer) {
-	st.reducer = r
+// AddReducer sets the store's reducers function to the function `r`.
+func (st *Store) AddReducer(r Reducer) {
+	st.reducers = append(st.reducers, r)
 }
 
 // AfterUpdate sets Store's update func. `update` is called after each
@@ -83,7 +85,10 @@ func (st *Store) Dispatch(action Action) {
 	st.mu.Lock()
 	defer st.mu.Unlock()
 
-	st.state = st.reducer(st.getState(), action)
+	for _, reducer := range st.reducers {
+		st.state = reducer(st.getState(), action)
+	}
+
 	if st.update != nil {
 		st.update(st.getState())
 	}
