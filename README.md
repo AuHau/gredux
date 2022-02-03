@@ -24,7 +24,7 @@ store := gredux.New(counterState{0})
 
 // Create a reducer which increments "count" when it receives an "increment" 
 // action, and decrements when it receives a "decrement" action.
-store.Reducer(func(state gredux.State, action gredux.Action) gredux.State {
+store.AddReducer(func(state gredux.State, action gredux.Action) gredux.State {
 	switch action.ID {
 	case "increment":
 		return counterState{state.(counterState).count + action.Data.(int)}
