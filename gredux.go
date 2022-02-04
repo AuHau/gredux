@@ -89,12 +89,12 @@ func (st *Store) Dispatch(action Action) {
 		st.state = reducer(st.getState(), action)
 	}
 
-	if st.update != nil {
-		st.update(st.getState())
-	}
-
 	actionHooks := st.hooks[action.ID]
 	for _, hook := range actionHooks {
 		hook(st.getState())
+	}
+
+	if st.update != nil {
+		st.update(st.getState())
 	}
 }
